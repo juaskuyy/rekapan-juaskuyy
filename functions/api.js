@@ -47,6 +47,14 @@ export async function onRequest({request,env}){
     await env.DB.prepare('DELETE FROM rooms WHERE id=? AND profile_id=?').bind(Number(b.id),b.profile).run();
     return json({ok:true});
    }
+   if(b.action==='delete_history'){
+    const period=await env.DB.prepare("SELECT id,period_number FROM periods WHERE id=? AND profile_id=? AND status='closed'").bind(Number(b.id),b.profile).first();
+    if(!period) throw Error('Riwayat shift tidak ditemukan atau belum ditutup');
+    await env.DB.prepare('DELETE FROM closing_rooms WHERE period_id=?').bind(period.id).run();
+    await env.DB.prepare('DELETE FROM transactions WHERE period_id=? AND profile_id=?').bind(period.id,b.profile).run();
+    await env.DB.prepare("DELETE FROM periods WHERE id=? AND profile_id=? AND status='closed'").bind(period.id,b.profile).run();
+    return json({ok:true,period_number:period.period_number});
+   }
    if(b.action==='closing'){
     const p=await env.DB.prepare("SELECT * FROM periods WHERE profile_id=? AND status='active' ORDER BY id DESC LIMIT 1").bind(b.profile).first(); if(!p) throw Error('Shift aktif tidak ditemukan');
     if(!b.start_date || !b.end_date) throw Error('Tanggal mulai dan tanggal selesai wajib diisi');
