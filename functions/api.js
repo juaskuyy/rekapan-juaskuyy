@@ -55,9 +55,9 @@ export async function onRequest({request,env}){
     if(!p.pin_hash && (!b.pin||String(b.pin).length<4))throw Error("Buat PIN minimal 4 digit");
     if(!p.pin_hash){await env.DB.prepare("UPDATE profiles SET pin_hash=? WHERE id=?").bind(hash,p.id).run()}
     const sid=crypto.randomUUID();await env.DB.prepare("INSERT INTO sessions(id,profile_id,expires_at) VALUES(?,?,datetime('now','+7 days'))").bind(sid,p.id).run();
-    return json({ok:true,first_setup:!p.pin_hash},{headers:{"set-cookie":setCookie(sid)}});
+    return json({ok:true,first_setup:!p.pin_hash},200,{headers:{"set-cookie":setCookie(sid)}});
    }
-   if(a==="logout"){const sid=cookieSid(request);if(sid)await env.DB.prepare("DELETE FROM sessions WHERE id=?").bind(sid).run();return json({ok:true},{headers:{"set-cookie":setCookie("",0)}});
+   if(a==="logout"){const sid=cookieSid(request);if(sid)await env.DB.prepare("DELETE FROM sessions WHERE id=?").bind(sid).run();return json({ok:true},200,{headers:{"set-cookie":setCookie("",0)}});
    }
    const s=await auth(request,env);if(!s)return json({error:"Sesi login necessária"},401);const profile=s.profile_id;
    if(a==="change_pin"){const old=await env.DB.prepare("SELECT pin_hash FROM profiles WHERE id=?").bind(profile).first();if((await sha256(String(b.old_pin)))!==old.pin_hash)throw Error("PIN lama salah");await env.DB.prepare("UPDATE profiles SET pin_hash=? WHERE id=?").bind(await sha256(String(b.new_pin)),profile).run();return json({ok:true})}
