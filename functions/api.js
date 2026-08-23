@@ -14,7 +14,7 @@ export async function onRequest({request,env}){
     const roomCash={}; tx.forEach(x=>{if(x.room_id!=null){roomCash[x.room_id]=(roomCash[x.room_id]||0)+(x.type==='income'?1:-1)*Number(x.amount||0)}});
     return json({profile,period,rooms:rooms.map(r=>({...r,cash:roomCash[r.id]||0})),transactions:tx,income,expense,final:income-expense});
    }
-   if(a==='history') return json({history:(await env.DB.prepare("SELECT * FROM periods WHERE profile_id=? AND status='closed' ORDER BY id DESC").bind(u.searchParams.get('profile')).all()).results});
+   if(a==='history'){const profile=u.searchParams.get('profile');const h=(await env.DB.prepare("SELECT * FROM periods WHERE profile_id=? AND status='closed' ORDER BY id DESC").bind(profile).all()).results;return json({history:h});}
    throw Error('Action tidak dikenal');
   }
   if(request.method==='POST'){
@@ -26,10 +26,13 @@ export async function onRequest({request,env}){
    }
    if(b.action==='closing'){
     const p=await env.DB.prepare("SELECT * FROM periods WHERE profile_id=? AND status='active' ORDER BY id DESC LIMIT 1").bind(b.profile).first(); if(!p) throw Error('Shift aktif tidak ditemukan');
+    if(!b.start_date || !b.end_date) throw Error('Tanggal mulai dan tanggal selesai wajib diisi');
+    if(b.end_date < b.start_date) throw Error('Tanggal selesai tidak boleh sebelum tanggal mulai');
     const t=await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END),0) income,COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),0) expense FROM transactions WHERE period_id=?").bind(p.id).first();
-    await env.DB.prepare('UPDATE periods SET status=\'closed\',closed_at=CURRENT_TIMESTAMP,total_income=?,total_expense=?,final_amount=? WHERE id=?').bind(t.income,t.expense,t.income-t.expense,p.id).run();
-    for(const r of (await env.DB.prepare('SELECT * FROM rooms WHERE profile_id=?').bind(b.profile).all()).results) await env.DB.prepare('INSERT INTO closing_rooms(period_id,room_id,room_name,room_status) VALUES(?,?,?,?)').bind(p.id,r.id,r.name,r.status).run();
-    await env.DB.prepare("INSERT INTO periods(profile_id,period_number,status) VALUES(?,?,'active')").bind(b.profile,Number(p.period_number)+1).run(); return json({ok:true,total:t.income-t.expense});
+    await env.DB.prepare('UPDATE periods SET status=\'closed\',closed_at=CURRENT_TIMESTAMP,start_date=?,end_date=?,total_income=?,total_expense=?,final_amount=? WHERE id=?').bind(b.start_date,b.end_date,t.income,t.expense,t.income-t.expense,p.id).run();
+    const rooms=(await env.DB.prepare('SELECT * FROM rooms WHERE profile_id=?').bind(b.profile).all()).results;
+    for(const r of rooms){const cash=await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE -amount END),0) cash FROM transactions WHERE period_id=? AND room_id=?").bind(p.id,r.id).first();await env.DB.prepare('INSERT INTO closing_rooms(period_id,room_id,room_name,room_status,cash_amount) VALUES(?,?,?,?,?)').bind(p.id,r.id,r.name,r.status,cash.cash).run();}
+    await env.DB.prepare("INSERT INTO periods(profile_id,period_number,status,start_date) VALUES(?,?,'active',?)").bind(b.profile,Number(p.period_number)+1,b.end_date).run(); return json({ok:true,total:t.income-t.expense,start_date:b.start_date,end_date:b.end_date});
    }
    throw Error('Action tidak dikenal');
   }
