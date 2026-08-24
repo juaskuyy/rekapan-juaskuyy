@@ -22,7 +22,7 @@ export async function onRequest({request,env}){
     const rooms=(await env.DB.prepare("SELECT id,name,status FROM rooms WHERE profile_id=? ORDER BY id").bind(profile).all()).results;
     const tx=(await env.DB.prepare("SELECT t.*,r.name room_name FROM transactions t LEFT JOIN rooms r ON r.id=t.room_id WHERE t.profile_id=? AND t.period_id=? ORDER BY t.transaction_date DESC,t.id DESC").bind(profile,period.id).all()).results;
     const income=tx.filter(x=>x.type==="income").reduce((z,x)=>z+x.amount,0),expense=tx.filter(x=>x.type==="expense").reduce((z,x)=>z+x.amount,0);
-    const cash=rooms.map(r=>{const ri=tx.filter(x=>x.room_id===r.id&&x.type==="income").reduce((z,x)=>z+x.amount,0),re=tx.filter(x=>x.room_id===r.id&&x.type==="expense").reduce((z,x)=>z+x.amount,0);return {...r,income:ri,expense:re,cash:ri-re}});
+    const cash=rooms.map(r=>{const ri=tx.filter(x=>Number(x.room_id)===Number(r.id)&&x.type==="income").reduce((z,x)=>z+x.amount,0),re=tx.filter(x=>Number(x.room_id)===Number(r.id)&&x.type==="expense").reduce((z,x)=>z+x.amount,0);return {...r,income:ri,expense:re,cash:ri-re}});
     return json({profile:{id:s.profile_id,name:s.name},period,rooms:cash,transactions:tx,income,expense,final:income-expense});
    }
    if(a==="history"){
@@ -32,7 +32,14 @@ export async function onRequest({request,env}){
    if(a==="shift"){
     const id=Number(u.searchParams.get("id"));const p=await env.DB.prepare("SELECT * FROM periods WHERE id=? AND profile_id=? AND status='closed'").bind(id,profile).first();if(!p)throw Error("Shift tidak ditemukan");
     const tx=(await env.DB.prepare("SELECT t.*,r.name room_name FROM transactions t LEFT JOIN rooms r ON r.id=t.room_id WHERE t.period_id=? ORDER BY t.transaction_date,t.id").bind(id).all()).results;
-    const rooms=(await env.DB.prepare("SELECT * FROM closing_rooms WHERE period_id=? ORDER BY id").bind(id).all()).results;
+    const rooms=(await env.DB.prepare(`
+      SELECT cr.id,cr.period_id,cr.room_id,cr.room_name,cr.room_status,
+      COALESCE((
+        SELECT SUM(CASE WHEN t.type='income' THEN t.amount ELSE -t.amount END)
+        FROM transactions t WHERE t.period_id=cr.period_id AND t.room_id=cr.room_id
+      ),0) AS cash_amount
+      FROM closing_rooms cr WHERE cr.period_id=? ORDER BY cr.id
+    `).bind(id).all()).results;
     return json({period:p,transactions:tx,rooms});
    }
    if(a==="monthly"){
