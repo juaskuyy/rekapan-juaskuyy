@@ -49,3 +49,20 @@ button{cursor:pointer}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--brown);color:#fff;padding:10px 16px;border-radius:999px;z-index:100}
 @media(max-width:760px){.profiles,.stats,.form-grid,.grid{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.searchbar{grid-template-columns:1fr 1fr}.topbar{align-items:flex-start}.brand{font-size:24px}}
 @media(max-width:480px){.profiles,.stats,.form-grid,.searchbar{grid-template-columns:1fr}.shell{padding:12px}}
+
+
+/* Premium navy splash screen */
+#splash{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,#172746 0%,#0d1930 38%,#071126 72%,#040b18 100%);color:#fff;transition:opacity .45s ease,visibility .45s ease}
+#splash.hide{opacity:0;visibility:hidden;pointer-events:none}
+#splash:before,#splash:after{content:"";position:absolute;border:1px solid rgba(221,169,91,.28);border-radius:50%;width:145vw;height:62vw;bottom:-20vw;transform:rotate(-8deg);box-shadow:0 0 50px rgba(218,167,90,.06)}
+#splash:after{width:130vw;height:52vw;bottom:-16vw;transform:rotate(8deg);opacity:.6}
+.splash-glow{position:absolute;width:75vw;height:75vw;border-radius:50%;background:radial-gradient(circle,rgba(205,153,78,.11),transparent 66%);top:25%;left:50%;transform:translate(-50%,-50%)}
+.splash-content{position:relative;z-index:2;width:min(88vw,430px);text-align:center;display:flex;flex-direction:column;align-items:center}
+.splash-icon{width:154px;height:154px;object-fit:cover;border-radius:28px;box-shadow:0 18px 45px rgba(0,0,0,.42),0 0 0 1px rgba(230,183,105,.22);animation:splashFloat 2.8s ease-in-out infinite}
+.splash-content h1{margin:28px 0 10px;font-size:32px;line-height:1.1;letter-spacing:-.7px;color:#e3ad5c;font-weight:800;text-shadow:0 3px 18px rgba(0,0,0,.28)}
+.splash-content p{margin:4px 0 38px;font-size:15px;color:#f4f3ef;letter-spacing:.1px}
+.splash-line{display:flex;align-items:center;gap:10px;width:210px;color:#e5b366}.splash-line span{height:1px;flex:1;background:linear-gradient(90deg,transparent,#dca75e)}.splash-line span:last-child{background:linear-gradient(90deg,#dca75e,transparent)}.splash-line i{font-style:normal;font-size:20px;text-shadow:0 0 14px rgba(231,177,91,.7)}
+.splash-loader{width:42px;height:42px;border-radius:50%;border:5px solid rgba(225,177,99,.18);border-top-color:#e2aa5b;border-right-color:#b97d34;animation:splashSpin 1s linear infinite;filter:drop-shadow(0 0 8px rgba(225,174,91,.25))}
+@keyframes splashSpin{to{transform:rotate(360deg)}}
+@keyframes splashFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media(max-width:480px){.splash-icon{width:140px;height:140px}.splash-content h1{font-size:29px}.splash-content p{font-size:14px}}
