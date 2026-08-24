@@ -2,8 +2,8 @@ const COOKIE="juaskuyy_sid";
 async function sha256(text){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(text));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function json(x,s=200,extra={}){return new Response(JSON.stringify(x),{status:s,headers:{"content-type":"application/json; charset=utf-8",...extra}})}
 function cookieSid(request){const c=request.headers.get("Cookie")||"";const m=c.match(new RegExp(COOKIE+"=([^;]+)"));return m?.[1]||null}
-async function auth(request,env){const sid=cookieSid(request);if(!sid)return null;const s=await env.DB.prepare("SELECT s.*,p.name FROM sessions s JOIN profiles p ON p.id=s.profile_id WHERE s.id=? AND s.expires_at>CURRENT_TIMESTAMP").bind(sid).first();return s||null}
-function setCookie(sid,maxAge=604800){return `${COOKIE}=${sid}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`}
+async function auth(request,env){const sid=cookieSid(request);if(!sid)return null;const s=await env.DB.prepare("SELECT s.*,p.name FROM sessions s JOIN profiles p ON p.id=s.profile_id WHERE s.id=?").bind(sid).first();return s||null}
+function setCookie(sid,maxAge=315360000){return `${COOKIE}=${sid}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`}
 export async function onRequest({request,env}){
  const u=new URL(request.url);
  if(u.pathname!=="/api")return new Response("Not found",{status:404});
@@ -54,10 +54,10 @@ export async function onRequest({request,env}){
     const hash=await sha256(String(b.pin||""));if(p.pin_hash&&hash!==p.pin_hash)throw Error("PIN salah");
     if(!p.pin_hash && (!b.pin||String(b.pin).length<4))throw Error("Buat PIN minimal 4 digit");
     if(!p.pin_hash){await env.DB.prepare("UPDATE profiles SET pin_hash=? WHERE id=?").bind(hash,p.id).run()}
-    const sid=crypto.randomUUID();await env.DB.prepare("INSERT INTO sessions(id,profile_id,expires_at) VALUES(?,?,datetime('now','+7 days'))").bind(sid,p.id).run();
-    return json({ok:true,first_setup:!p.pin_hash},200,{headers:{"set-cookie":setCookie(sid)}});
+    const sid=crypto.randomUUID();await env.DB.prepare("INSERT INTO sessions(id,profile_id,expires_at) VALUES(?,?,'9999-12-31 23:59:59')").bind(sid,p.id).run();
+    return json({ok:true,first_setup:!p.pin_hash},200,{"set-cookie":setCookie(sid)});
    }
-   if(a==="logout"){const sid=cookieSid(request);if(sid)await env.DB.prepare("DELETE FROM sessions WHERE id=?").bind(sid).run();return json({ok:true},200,{headers:{"set-cookie":setCookie("",0)}});
+   if(a==="logout"){const sid=cookieSid(request);if(sid)await env.DB.prepare("DELETE FROM sessions WHERE id=?").bind(sid).run();return json({ok:true},200,{"set-cookie":setCookie("",0)});
    }
    const s=await auth(request,env);if(!s)return json({error:"Sesi login necessária"},401);const profile=s.profile_id;
    if(a==="change_pin"){const old=await env.DB.prepare("SELECT pin_hash FROM profiles WHERE id=?").bind(profile).first();if((await sha256(String(b.old_pin)))!==old.pin_hash)throw Error("PIN lama salah");await env.DB.prepare("UPDATE profiles SET pin_hash=? WHERE id=?").bind(await sha256(String(b.new_pin)),profile).run();return json({ok:true})}
