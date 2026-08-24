@@ -34,6 +34,7 @@ async function shift(id){const d=await api("/api?action=shift&id="+id);render(`<
 async function deleteHistory(id){if(!confirm("Hapus riwayat shift ini secara permanen? Transaksi dan snapshot cash shift ini ikut dihapus."))return;await api("/api",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"delete_history",id})});toast("Riwayat dihapus");history()}
 async function shareShift(id){
  const d=await api("/api?action=shift&id="+id),p=d.period;
+ const nl=String.fromCharCode(10);
  const lines=[
   "*Rekapan Juaskuyy*",
   "*"+cache.profile.name+" · Shift "+p.period_number+"*",
@@ -48,13 +49,15 @@ async function shareShift(id){
   "",
   "📋 "+d.transactions.length+" transaksi"
  ];
- location.href="https://wa.me/?text="+encodeURIComponent(lines.join("
-"));
+ const text=lines.join(nl);
+ const waUrl="https://wa.me/?text="+encodeURIComponent(text);
+ window.location.href=waUrl;
 }
 async function exportShift(id){const d=await api("/api?action=shift&id="+id),p=d.period;const c=document.createElement("canvas"),ctx=c.getContext("2d");c.width=1080;c.height=1200;ctx.fillStyle="#f7f2ee";ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle="#5b4140";ctx.font="bold 48px Arial";ctx.fillText("Rekapan Juaskuyy",60,80);ctx.font="bold 34px Arial";ctx.fillText(`${cache.profile.name} · Shift ${p.period_number}`,60,140);ctx.font="24px Arial";ctx.fillText(`${dateFmt(p.start_date)} – ${dateFmt(p.end_date)}`,60,180);ctx.fillStyle="#fffdfb";ctx.fillRect(50,220,980,250);ctx.fillStyle="#3d3330";ctx.font="bold 26px Arial";ctx.fillText("Pemasukan",80,270);ctx.fillText("Pengeluaran",400,270);ctx.fillText("Total Shift",720,270);ctx.font="bold 30px Arial";ctx.fillText(rupiah(p.total_income),80,320);ctx.fillText(rupiah(p.total_expense),400,320);ctx.fillText(rupiah(p.final_amount),720,320);ctx.font="bold 30px Arial";ctx.fillText("Cash per Room",60,530);let y=580;ctx.font="24px Arial";for(const r of d.rooms){ctx.fillStyle="#fff";ctx.fillRect(50,y-32,980,62);ctx.fillStyle="#3d3330";ctx.fillText(r.room_name,75,y);ctx.fillText(rupiah(r.cash_amount),760,y);y+=78;if(y>1080)break}const a=document.createElement("a");a.href=c.toDataURL("image/png");a.download=`Rekapan-${cache.profile.name}-Shift-${p.period_number}.png`;a.click();toast("PNG berhasil dibuat")}
 async function monthly(){const month=new Date().toISOString().slice(0,7),d=await api("/api?action=monthly&month="+month);const days={};d.transactions.forEach(t=>{days[t.transaction_date]=(days[t.transaction_date]||{i:0,e:0});days[t.transaction_date][t.type==="income"?"i":"e"]+=t.amount});const bars=Object.entries(days).slice(-14).map(([day,x])=>`<div class="bar"><span class="inbar" style="height:${Math.max(8,Math.min(140,x.i/10000))}px"></span><span class="outbar" style="height:${Math.max(8,Math.min(140,x.e/10000))}px"></span><label>${day.slice(-2)}</label></div>`).join("");render(`<section class="card section"><h3>📊 Rekap Bulanan · ${month}</h3><div class="stats"><div class="stat"><span>Pemasukan</span><strong>${rupiah(d.income)}</strong></div><div class="stat"><span>Pengeluaran</span><strong>${rupiah(d.expense)}</strong></div><div class="stat"><span>Final</span><strong>${rupiah(d.final)}</strong></div><div class="stat"><span>Transaksi</span><strong>${d.transactions.length}</strong></div></div><h3 class="section">Grafik Harian</h3><div class="chart">${bars||'<div class="empty">Belum ada data.</div>'}</div><div class="actions section"><button class="btn" onclick="shareMonthly('${month}')">💬 Share WhatsApp</button><button class="btn" onclick="exportMonthly('${month}')">📸 Unduh PNG</button></div></section>`)}
 async function shareMonthly(month){
  const d=await api("/api?action=monthly&month="+month);
+ const nl=String.fromCharCode(10);
  const lines=[
   "*Rekapan Juaskuyy*",
   "*"+cache.profile.name+" · "+month+"*",
@@ -64,8 +67,8 @@ async function shareMonthly(month){
   "💵 Final: "+rupiah(d.final),
   "📋 "+d.transactions.length+" transaksi"
  ];
- location.href="https://wa.me/?text="+encodeURIComponent(lines.join("
-"));
+ const text=lines.join(nl);
+ window.location.href="https://wa.me/?text="+encodeURIComponent(text);
 }
 async function exportMonthly(month){const d=await api("/api?action=monthly&month="+month),c=document.createElement("canvas"),ctx=c.getContext("2d");c.width=1080;c.height=800;ctx.fillStyle="#f7f2ee";ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle="#5b4140";ctx.font="bold 48px Arial";ctx.fillText("Rekapan Juaskuyy",60,90);ctx.font="bold 32px Arial";ctx.fillText(`${cache.profile.name} · ${month}`,60,145);ctx.font="bold 30px Arial";ctx.fillStyle="#3d3330";ctx.fillText(`Pemasukan  ${rupiah(d.income)}`,70,250);ctx.fillText(`Pengeluaran  ${rupiah(d.expense)}`,70,320);ctx.fillText(`Final  ${rupiah(d.final)}`,70,390);const a=document.createElement("a");a.href=c.toDataURL("image/png");a.download=`Rekap-${cache.profile.name}-${month}.png`;a.click()}
 async function settings(){render(`<section class="card section"><h3>⚙️ Pengaturan</h3><div class="actions"><button class="btn" onclick="pinModal()">🔐 Ganti PIN</button><button class="btn" onclick="backup()">💾 Backup Data</button></div><p class="muted">Backup berisi data profil, shift, room, transaksi, dan snapshot closing profil ini.</p></section>`)}
